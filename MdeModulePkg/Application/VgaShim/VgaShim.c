@@ -313,8 +313,8 @@ ShimVesaInformation(
 	//
 	// Center visible image on screen using framebuffer offset.
 	//
-	HorizontalOffsetPx = (DisplayInfo.HorizontalResolution - 1024) / 2;
-	VerticalOffsetPx = (DisplayInfo.VerticalResolution - 768) / 2 * DisplayInfo.PixelsPerScanLine;
+	HorizontalOffsetPx = 0;
+	VerticalOffsetPx = 0;
 	FrameBufferBaseWithOffset = DisplayInfo.FrameBufferBase 
 		+ VerticalOffsetPx * 4		// 4 bytes per pixel
 		+ HorizontalOffsetPx * 4;	// 4 bytes per pixel
