@@ -180,7 +180,7 @@ UefiMain (
 	// Print extra video mode debug info if requested.
 	//
 	if (DebugMode) {
-		PrintDebug(L"Print video mode information (Y/N)?\n", LaunchPath);
+		PrintDebug(L"Print video mode information (y/N)?\n", LaunchPath);
 		gST->ConIn->Reset(gST->ConIn, FALSE);
 		gBS->WaitForEvent(1, &gST->ConIn->WaitForKey, &EventIndex);
 		gST->ConIn->ReadKeyStroke(gST->ConIn, &Key);
