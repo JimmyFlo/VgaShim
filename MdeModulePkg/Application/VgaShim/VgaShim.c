@@ -57,6 +57,7 @@ UefiMain (
 	EFI_STATUS				Status;
 	EFI_STATUS				IvtAllocationStatus;
 	EFI_INPUT_KEY			Key;
+	UINTN					EventIndex;
 	CHAR16					*LaunchPath = NULL;
 
 	//
@@ -173,6 +174,19 @@ UefiMain (
 			NewInt10hHandlerEntry.Segment, NewInt10hHandlerEntry.Offset);
 		PrintError(L"Press Enter to try to continue.\n");
 		WaitForEnter(FALSE);
+	}
+
+	//
+	// Print extra video mode debug info if requested.
+	//
+	if (DebugMode) {
+		PrintDebug(L"Print video mode information (Y/N)?\n", LaunchPath);
+		gST->ConIn->Reset(gST->ConIn, FALSE);
+		gBS->WaitForEvent(1, &gST->ConIn->WaitForKey, &EventIndex);
+		gST->ConIn->ReadKeyStroke(gST->ConIn, &Key);
+		if (Key.UnicodeChar == L'y' || Key.UnicodeChar == L'Y') {
+			PrintVideoInfo();
+		}
 	}
 	
 Exit:
