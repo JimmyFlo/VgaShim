@@ -57,9 +57,14 @@ InitializeDisplay(
 EFI_STATUS
 InitializeDisplay()
 {
-	EFI_STATUS	Status;
-	UINT32		Temp1;
-	UINT32		Temp2;
+	EFI_STATUS	                            Status;
+	UINT32		                            Temp1;
+	UINT32		                            Temp2;
+	UINT32									MaxMode;
+	UINT32									i;
+	EFI_GRAPHICS_OUTPUT_MODE_INFORMATION	*ModeInfo;
+	UINTN									SizeOfInfo;
+
 	
 	// Sets AdapterFound = FALSE and Protocol = NONE
 	SetMem(&DisplayInfo, sizeof(DISPLAY_INFO), 0);
@@ -70,6 +75,24 @@ InitializeDisplay()
 	Status = gBS->HandleProtocol(gST->ConsoleOutHandle, &gEfiGraphicsOutputProtocolGuid, (VOID **)&DisplayInfo.GOP);
 	if (!EFI_ERROR(Status)) {
 		PrintDebug(L"Found a GOP display adapter\n");
+	
+		// Try to set a 1024x768 resolution
+		MaxMode = DisplayInfo.GOP->Mode->MaxMode;
+		PrintDebug(L"Available modes (MaxMode = %u):\n", MaxMode);
+		for (i = 0; i < MaxMode; i++) {
+				
+			Status = DisplayInfo.GOP->QueryMode(DisplayInfo.GOP, i, &SizeOfInfo, &ModeInfo);
+			if (!EFI_ERROR(Status)) {
+				PrintDebug(L"  Mode%u: %ux%u\n", i, ModeInfo->HorizontalResolution, ModeInfo->VerticalResolution);
+
+				if (ModeInfo->HorizontalResolution == 1024 && ModeInfo->VerticalResolution == 768) {
+					PrintDebug(L"Found desired mode %u with a 1024x768 resolution, trying to switch over...\n", i);
+					DisplayInfo.GOP->SetMode(DisplayInfo.GOP, i);
+					if (!EFI_ERROR(Status)) break;
+				}
+			}
+		}
+
 		DisplayInfo.HorizontalResolution = DisplayInfo.GOP->Mode->Info->HorizontalResolution;
 		DisplayInfo.VerticalResolution = DisplayInfo.GOP->Mode->Info->VerticalResolution;
 		DisplayInfo.PixelFormat = DisplayInfo.GOP->Mode->Info->PixelFormat;
@@ -78,6 +101,14 @@ InitializeDisplay()
 		// usually = PixelsPerScanLine * VerticalResolution * BytesPerPixel
 		// for MacBookAir7,2: 1536 * 900 * 4 = 5,529,600 bytes
 		DisplayInfo.FrameBufferSize = DisplayInfo.GOP->Mode->FrameBufferSize;
+
+		PrintDebug(L"Current mode:\n");
+		PrintDebug(L"  HorizontalResolution = %u\n", DisplayInfo.HorizontalResolution);
+		PrintDebug(L"  VerticalResolution = %u\n", DisplayInfo.VerticalResolution);
+		PrintDebug(L"  PixelFormat = %u\n", DisplayInfo.PixelFormat);
+		PrintDebug(L"  PixelsPerScanLine = %u\n", DisplayInfo.PixelsPerScanLine);
+		PrintDebug(L"  FrameBufferBase = %x\n", DisplayInfo.FrameBufferBase);
+		PrintDebug(L"  FrameBufferSize = %u\n", DisplayInfo.FrameBufferSize);
 
 		DisplayInfo.Protocol = GOP;
 		DisplayInfo.AdapterFound = TRUE;
