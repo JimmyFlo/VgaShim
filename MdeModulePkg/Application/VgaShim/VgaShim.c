@@ -17,7 +17,6 @@
 #include "Util.h"
 #include "Filesystem.h"
 #include "Int10hHandler.h"
-#include "BootflagSimple.h"
 #include "Version.h"
 
 
@@ -94,9 +93,7 @@ UefiMain (
 	// Show pretty graphics.
 	//
 	if (!DebugMode) {
-		if (!ShowAnimatedLogo()) {
-			ShowStaticLogo();
-		}
+		ShowAnimatedLogo();
 	}
 
 	//
@@ -546,40 +543,6 @@ CanWriteAtAddress(
 	*TestPtr = OldValue;
 	return CanWrite;
 }
-
-
-/**
-  Displays a static built-in Windows flag (last frame in
-  animation shown when starting Windows 7).
-
-  @retval TRUE              Static logo was successfully retrieved
-                            and displayed on screen.
-  @retval FALSE             Either the required resource was not found
-                            or was unable to switch to graphical output.
-  
-**/
-BOOLEAN
-ShowStaticLogo()
-{
-	EFI_STATUS	Status;
-	IMAGE		*WindowsFlag;
-
-	// Sanity checks.
-	Status = BmpFileToImage(BootflagSimple, sizeof BootflagSimple, (VOID **)&WindowsFlag);
-	if (EFI_ERROR(Status)) {
-		return FALSE;
-	}
-	
-	// All fine, let's do some drawing.
-	SwtichToGraphics(FALSE);
-	ClearScreen();
-	DrawImageCentered(WindowsFlag);
-
-	// Cleanup & return.
-	DestroyImage(WindowsFlag);
-	return TRUE;
-}
-
 
 /**
   Displays an animated logo. It has to be stored in a .bmp file
