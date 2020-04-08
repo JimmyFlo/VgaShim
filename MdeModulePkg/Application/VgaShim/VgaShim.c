@@ -97,6 +97,14 @@ UefiMain (
 	}
 
 	//
+	// Windows 7 prefers a 1024x768 resolution.
+	//
+	SwitchVideoMode(1024, 768);
+	if (DebugMode) {
+		PrintVideoInfo();
+	}
+
+	//
 	// If an Int10h handler exists there either is a real
 	// VGA ROM in operation or we installed the shim before.
 	//

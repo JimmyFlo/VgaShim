@@ -109,6 +109,12 @@ VOID
 SwitchToText(
 	IN	BOOLEAN	Force);
 
+EFI_STATUS
+SwitchVideoMode(
+	IN UINTN Width,
+	IN UINTN Height
+);
+
 VOID
 SwtichToGraphics(
 	IN	BOOLEAN	Force);

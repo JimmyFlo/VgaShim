@@ -60,11 +60,6 @@ InitializeDisplay()
 	EFI_STATUS	                            Status;
 	UINT32		                            Temp1;
 	UINT32		                            Temp2;
-	UINT32									MaxMode;
-	UINT32									i;
-	EFI_GRAPHICS_OUTPUT_MODE_INFORMATION	*ModeInfo;
-	UINTN									SizeOfInfo;
-
 	
 	// Sets AdapterFound = FALSE and Protocol = NONE
 	SetMem(&DisplayInfo, sizeof(DISPLAY_INFO), 0);
@@ -73,26 +68,12 @@ InitializeDisplay()
 	// Try a GOP adapter first.
 	//
 	Status = gBS->HandleProtocol(gST->ConsoleOutHandle, &gEfiGraphicsOutputProtocolGuid, (VOID **)&DisplayInfo.GOP);
+	if (EFI_ERROR(Status)) {
+		Status = gBS->LocateProtocol(&gEfiGraphicsOutputProtocolGuid, NULL, (VOID **)&DisplayInfo.GOP);
+	}
 	if (!EFI_ERROR(Status)) {
 		PrintDebug(L"Found a GOP display adapter\n");
 	
-		// Try to set a 1024x768 resolution
-		MaxMode = DisplayInfo.GOP->Mode->MaxMode;
-		PrintDebug(L"Available modes (MaxMode = %u):\n", MaxMode);
-		for (i = 0; i < MaxMode; i++) {
-				
-			Status = DisplayInfo.GOP->QueryMode(DisplayInfo.GOP, i, &SizeOfInfo, &ModeInfo);
-			if (!EFI_ERROR(Status)) {
-				PrintDebug(L"  Mode%u: %ux%u\n", i, ModeInfo->HorizontalResolution, ModeInfo->VerticalResolution);
-
-				if (ModeInfo->HorizontalResolution == 1024 && ModeInfo->VerticalResolution == 768) {
-					PrintDebug(L"Found desired mode %u with a 1024x768 resolution, trying to switch over...\n", i);
-					DisplayInfo.GOP->SetMode(DisplayInfo.GOP, i);
-					if (!EFI_ERROR(Status)) break;
-				}
-			}
-		}
-
 		DisplayInfo.HorizontalResolution = DisplayInfo.GOP->Mode->Info->HorizontalResolution;
 		DisplayInfo.VerticalResolution = DisplayInfo.GOP->Mode->Info->VerticalResolution;
 		DisplayInfo.PixelFormat = DisplayInfo.GOP->Mode->Info->PixelFormat;
@@ -101,14 +82,6 @@ InitializeDisplay()
 		// usually = PixelsPerScanLine * VerticalResolution * BytesPerPixel
 		// for MacBookAir7,2: 1536 * 900 * 4 = 5,529,600 bytes
 		DisplayInfo.FrameBufferSize = DisplayInfo.GOP->Mode->FrameBufferSize;
-
-		PrintDebug(L"Current mode:\n");
-		PrintDebug(L"  HorizontalResolution = %u\n", DisplayInfo.HorizontalResolution);
-		PrintDebug(L"  VerticalResolution = %u\n", DisplayInfo.VerticalResolution);
-		PrintDebug(L"  PixelFormat = %u\n", DisplayInfo.PixelFormat);
-		PrintDebug(L"  PixelsPerScanLine = %u\n", DisplayInfo.PixelsPerScanLine);
-		PrintDebug(L"  FrameBufferBase = %x\n", DisplayInfo.FrameBufferBase);
-		PrintDebug(L"  FrameBufferSize = %u\n", DisplayInfo.FrameBufferSize);
 
 		DisplayInfo.Protocol = GOP;
 		DisplayInfo.AdapterFound = TRUE;
@@ -122,6 +95,9 @@ InitializeDisplay()
 	//
 	DisplayInfo.GOP = NULL;
 	Status = gBS->HandleProtocol(gST->ConsoleOutHandle, &gEfiUgaDrawProtocolGuid, (VOID **)&DisplayInfo.UGA);
+	if (EFI_ERROR(Status)) {
+		Status = gBS->LocateProtocol(&gEfiUgaDrawProtocolGuid, NULL, (VOID **)&DisplayInfo.UGA);
+	}
 	if (!EFI_ERROR(Status)) {
 		PrintDebug(L"Found a UGA display adapter\n");
 		Status = DisplayInfo.UGA->GetMode(DisplayInfo.UGA, &DisplayInfo.HorizontalResolution, &DisplayInfo.VerticalResolution, &Temp1, &Temp2);
@@ -238,6 +214,71 @@ EnsureDisplayAvailable()
 
 
 /**
+  Switch to a video mode with specified resolution.
+
+  @param[in] Width     Desired screen width.
+  @param[in] Height    Desired screen height.
+
+  @retval EFI_SUCCESS  Successfully switched to a desired mode.
+  @retval other        Either no graphics adapter available,
+					   or the graphics adapter does not support mode switching,
+					   or the graphics adapter failed to switch modes.
+**/
+EFI_STATUS
+SwitchVideoMode(
+	IN UINTN Width,
+	IN UINTN Height
+) {
+	EFI_STATUS                              Status = EFI_DEVICE_ERROR;
+	UINT32                                  MaxMode;
+	UINT32                                  i;
+	EFI_GRAPHICS_OUTPUT_MODE_INFORMATION	*ModeInfo;
+	UINTN                                   SizeOfInfo;
+
+	if (EFI_ERROR(EnsureDisplayAvailable())) {
+		PrintDebug(L"No display adapters found, unable to switch video mode.\n");
+		return EFI_DEVICE_ERROR;
+	}
+
+	if (DisplayInfo.Protocol != GOP) {
+		PrintError(L"Video mode switching is not supported on UGA display adapters.\n");
+		return EFI_UNSUPPORTED;
+	}
+
+	// Try to switch to a desired resolution
+	MaxMode = DisplayInfo.GOP->Mode->MaxMode;
+	for (i = 0; i < MaxMode; i++) {
+		Status = DisplayInfo.GOP->QueryMode(DisplayInfo.GOP, i, &SizeOfInfo, &ModeInfo);
+		if (!EFI_ERROR(Status)) {
+			if (ModeInfo->HorizontalResolution == 1024 &&
+				ModeInfo->VerticalResolution == 768) {
+				if (ModeInfo->PixelFormat == PixelBlueGreenRedReserved8BitPerColor ||
+					ModeInfo->PixelFormat == PixelRedGreenBlueReserved8BitPerColor) {
+
+					Status = DisplayInfo.GOP->SetMode(DisplayInfo.GOP, i);
+					if (EFI_ERROR(Status)) {
+						PrintError(L"Failed to switch to Mode %u with desired %ux%u resolution.\n", i, Width, Height);
+					} else {
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	// Refresh DisplayInfo
+	DisplayInfo.HorizontalResolution = DisplayInfo.GOP->Mode->Info->HorizontalResolution;
+	DisplayInfo.VerticalResolution = DisplayInfo.GOP->Mode->Info->VerticalResolution;
+	DisplayInfo.PixelFormat = DisplayInfo.GOP->Mode->Info->PixelFormat;
+	DisplayInfo.PixelsPerScanLine = DisplayInfo.GOP->Mode->Info->PixelsPerScanLine;
+	DisplayInfo.FrameBufferBase = DisplayInfo.GOP->Mode->FrameBufferBase;
+	DisplayInfo.FrameBufferSize = DisplayInfo.GOP->Mode->FrameBufferSize;
+
+	gST->ConOut->ClearScreen(gST->ConOut);
+	return Status;
+}
+
+/**
   Prints important information about the currently running video
   mode. Initializes adapters if they have not yet been detected.
 
@@ -265,13 +306,15 @@ PrintVideoInfo()
 	PrintDebug(L"  FrameBufferSize = %u\n", DisplayInfo.FrameBufferSize);
 
 	// Query available modes.
-	MaxMode = DisplayInfo.GOP->Mode->MaxMode;
-	PrintDebug(L"Available modes (MaxMode = %u):\n", MaxMode);
-	for (i = 0; i < MaxMode; i++) {
-			
-		Status = DisplayInfo.GOP->QueryMode(DisplayInfo.GOP, i, &SizeOfInfo, &ModeInfo);
-		if (!EFI_ERROR(Status)) {
-			PrintDebug(L"  Mode%u: %ux%u\n", i, ModeInfo->HorizontalResolution, ModeInfo->VerticalResolution);
+	if (DisplayInfo.Protocol == GOP) {
+		MaxMode = DisplayInfo.GOP->Mode->MaxMode;
+		PrintDebug(L"Available modes (MaxMode = %u):\n", MaxMode);
+		for (i = 0; i < MaxMode; i++) {
+
+			Status = DisplayInfo.GOP->QueryMode(DisplayInfo.GOP, i, &SizeOfInfo, &ModeInfo);
+			if (!EFI_ERROR(Status)) {
+				PrintDebug(L"  Mode%u: %ux%u\n", i, ModeInfo->HorizontalResolution, ModeInfo->VerticalResolution);
+			}
 		}
 	}
 }

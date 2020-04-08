@@ -66,10 +66,6 @@ typedef enum
 **/
 
 BOOLEAN
-ShowStaticLogo(
-	VOID);
-
-BOOLEAN
 ShowAnimatedLogo(
 	VOID);
 
