@@ -467,7 +467,7 @@ EnsureMemoryLock(
 
 			PrintDebug(L"%s %s memory at %x with EfiLegacyRegionProtocol\n", 
 				EFI_ERROR(Status) ? L"Failure" : L"Success",
-				Operation == UNLOCK ? L"unlocking" : L"locking", 
+				Operation == UNLOCK ? L"unlocking" : L"locking",
 				StartAddress);
 		}
 	}
@@ -488,7 +488,7 @@ EnsureMemoryLock(
 
 			PrintDebug(L"%s %s memory at %x with EfiLegacyRegion2Protocol\n", 
 				EFI_ERROR(Status) ? L"Failure" : L"Success",
-				Operation == UNLOCK ? L"unlocking" : L"locking", 
+				Operation == UNLOCK ? L"unlocking" : L"locking",
 				StartAddress);
 		}
 	}
@@ -506,8 +506,8 @@ EnsureMemoryLock(
 		}
 
 		PrintDebug(L"%s %s memory at %x with MTRRs\n", 
-			EFI_ERROR(Status) ? "Failure" : "Success",
-			Operation == UNLOCK ? "unlocking" : "locking", 
+			EFI_ERROR(Status) ? L"Failure" : L"Success",
+			Operation == UNLOCK ? L"unlocking" : L"locking",
 			StartAddress);
 	}
 	
@@ -516,7 +516,7 @@ EnsureMemoryLock(
 	// 
 	if (EFI_ERROR(Status)) {
 		PrintError(L"Unable to find a way to %s memory at %x\n", 
-			Operation == UNLOCK ? "unlock" : "lock", StartAddress);
+			Operation == UNLOCK ? L"unlock" : L"lock", StartAddress);
 	}
 	
 	return Status;
